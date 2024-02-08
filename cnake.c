@@ -11,8 +11,9 @@
 
 /* ANSI escape sequences */
 /* @see https://gist.github.com/ConnerWill/d4b6c776b509add763e17f9f113fd25b */
+#define AES_ERASE "\x1B[0J"
 #define AES_CURSOR_HIDE "\x1B[?25l"
-#define AES_CURSOR_SHOW "\x1B[[?25h"
+#define AES_CURSOR_SHOW "\x1B[?25h"
 #define AES_CURSOR_UP "\x1B[%dA"
 #define AES_CURSOR_DOWN "\x1B[%dB"
 #define AES_CURSOR_RIGHT "\x1B[%dC"
@@ -74,6 +75,10 @@ static void print_at(const char *str, const int row, const int col,
   printf(AES_CURSOR_UP_BOL, row);
 }
 
+static void play_sound(void) {
+	printf("\a");
+}
+
 int main(void) {
   /* Initialize terminal */
   printf(AES_CURSOR_HIDE);
@@ -89,7 +94,6 @@ int main(void) {
   char quit = 0;
 
   while (!quit) {
-    /* Move cursor back to top */
     print_table();
 
     unsigned int head = 0;
@@ -123,22 +127,24 @@ int main(void) {
         }
       }
 
-      /* Clear tail */
+      /* Draw over tail */
       print_at(" ", y[tail] + 1, x[tail] + 1, TEXT_DEFAULT);
 
+      /* Check if head collided with food */
       if (x[head] == food_x && y[head] == food_y) {
         food_x = -1;
-        /* Play bell sound */
-        printf("\a");
+      	play_sound();
       } else {
         tail = (tail + 1) % MAX_SNAKE_LENGTH;
       }
 
+      /* Calculate position for new head */
       unsigned int newhead = (head + 1) % MAX_SNAKE_LENGTH;
       x[newhead] = (x[head] + dx + COLS) % COLS;
       y[newhead] = (y[head] + dy + ROWS) % ROWS;
       head = newhead;
 
+      /* Check if new head collides with any part of snake body */
       for (unsigned int i = tail; i != head; i = (i + 1) % MAX_SNAKE_LENGTH) {
         if (x[i] == x[head] && y[i] == y[head]) {
           game_over = 1;
@@ -151,7 +157,7 @@ int main(void) {
       fflush(stdout);
       usleep(1000000 / speed);
 
-      /* Perform non-blocking getchar() */
+      /* Non-blocking getchar() by calling select with a timeout of 0 */
       fd_set fds;
       FD_ZERO(&fds);
       FD_SET(STDIN_FILENO, &fds);
@@ -180,7 +186,7 @@ int main(void) {
       }
     }
 
-    if (!quit) {
+    if (game_over) {
       print_at(TEXT_GAME_OVER, ROWS / 2,
                COLS / 2 - ((int)strlen(TEXT_GAME_OVER) / 2), TEXT_BLINK);
       fflush(stdout);
@@ -191,6 +197,7 @@ int main(void) {
 
   /* Restore initial terminal settings */
   printf(AES_CURSOR_SHOW);
+  printf(AES_ERASE);
   tcsetattr(STDIN_FILENO, TCSANOW, &term_initial);
   return EXIT_SUCCESS;
 }
