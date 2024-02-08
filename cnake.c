@@ -11,24 +11,32 @@
 
 /* ANSI escape sequences */
 /* @see https://gist.github.com/ConnerWill/d4b6c776b509add763e17f9f113fd25b */
-#define AES_HIDE_CURSOR "\x1B[?25l"
-#define AES_SHOW_CURSOR "\x1B[[?25h"
-#define ANSI_CMD_MOVE_CURSOR_UP "\x1B[%dA"
-#define ANSI_CMD_MOVE_CURSOR_DOWN "\x1B[%dB"
-#define ANSI_CMD_MOVE_CURSOR_RIGHT "\x1B[%dC"
-#define ANSI_CMD_MOVE_CURSOR_LEFT "\x1B[%dD"
-#define ANSI_CMD_RED_TEXT "\x1B[0;31m"
-#define ANSI_CMD_GREEN_TEXT "\x1B[0;32m"
-#define ANSI_CMD_RESET "\x1B[0m"
-#define ANSI_CMD_MOVE_CURSOR_UP_BOL "\x1B[%dF"
+#define AES_CURSOR_HIDE "\x1B[?25l"
+#define AES_CURSOR_SHOW "\x1B[[?25h"
+#define AES_CURSOR_UP "\x1B[%dA"
+#define AES_CURSOR_DOWN "\x1B[%dB"
+#define AES_CURSOR_RIGHT "\x1B[%dC"
+#define AES_CURSOR_LEFT "\x1B[%dD"
+#define AES_TEXT_COLOR_RED "\x1B[0;31m"
+#define AES_TEXT_COLOR_GREEN "\x1B[0;32m"
+#define AES_TEXT_RESET "\x1B[0m"
+#define AES_TEXT_BLINK "\x1B[5m"
+#define AES_CURSOR_UP_BOL "\x1B[%dF"
 
-enum Color {
-	COLOR_DEFAULT = 0,
-	COLOR_RED,
-	COLOR_GREEN,
+enum TextStyle {
+  TEXT_DEFAULT,
+  TEXT_RED,
+  TEXT_GREEN,
+  TEXT_BLINK,
 };
 
 static const char *TEXT_GAME_OVER = "Game Over!";
+static const char *text_styles[] = {
+	AES_TEXT_RESET,
+	AES_TEXT_COLOR_RED,
+	AES_TEXT_COLOR_GREEN,
+	AES_TEXT_BLINK,
+};
 
 static void print_table(void) {
   printf("┌");
@@ -53,27 +61,22 @@ static void print_table(void) {
 
   // Cursor now at final (ROWS+2, 0)
   // Move it back to BOL of starting position
-  printf(ANSI_CMD_MOVE_CURSOR_UP, ROWS + 2);
+  printf(AES_CURSOR_UP, ROWS + 2);
 }
 
-static void print_at(const char *str, const int row, const int col, const enum Color color) {
-	printf(ANSI_CMD_MOVE_CURSOR_DOWN, row);
-	printf(ANSI_CMD_MOVE_CURSOR_RIGHT, col);
-
-	if (color == COLOR_RED) {
-		printf(ANSI_CMD_RED_TEXT);
-	} else if (color == COLOR_GREEN) {
-		printf(ANSI_CMD_GREEN_TEXT);
-	}
-
-	printf("%s", str);
-	printf(ANSI_CMD_RESET);
-  printf(ANSI_CMD_MOVE_CURSOR_UP_BOL, row);
+static void print_at(const char *str, const int row, const int col,
+                     const enum TextStyle style) {
+  printf(AES_CURSOR_DOWN, row);
+  printf(AES_CURSOR_RIGHT, col);
+  printf("%s", text_styles[style]);
+  printf("%s", str);
+  printf(AES_TEXT_RESET);
+  printf(AES_CURSOR_UP_BOL, row);
 }
 
 int main(void) {
   /* Initialize terminal */
-  printf(AES_HIDE_CURSOR);
+  printf(AES_CURSOR_HIDE);
   struct termios term_initial;
   struct termios term_cfg;
   tcgetattr(STDIN_FILENO, &term_initial);
@@ -102,7 +105,7 @@ int main(void) {
     int food_y;
 
     while (!quit && !game_over) {
-    	/* maybe place new food */
+      /* maybe place new food */
       if (food_x < 0) {
         food_x = rand() % COLS;
         food_y = rand() % ROWS;
@@ -116,12 +119,12 @@ int main(void) {
         }
 
         if (food_x >= 0) {
-        	print_at("❤", food_y+1, food_x+1, COLOR_RED);
+          print_at("❤", food_y + 1, food_x + 1, TEXT_RED);
         }
       }
 
       /* Clear tail */
-      print_at(" ", y[tail]+1, x[tail]+1, COLOR_DEFAULT);
+      print_at(" ", y[tail] + 1, x[tail] + 1, TEXT_DEFAULT);
 
       if (x[head] == food_x && y[head] == food_y) {
         food_x = -1;
@@ -144,7 +147,7 @@ int main(void) {
       }
 
       /* Draw head */
-      print_at("█", y[head]+1, x[head]+1, COLOR_GREEN);
+      print_at("█", y[head] + 1, x[head] + 1, TEXT_GREEN);
       fflush(stdout);
       usleep(1000000 / speed);
 
@@ -170,15 +173,16 @@ int main(void) {
           dx = 1;
           dy = 0;
         } else if (ch == '+' && speed < 40) {
-        	speed += 4;
+          speed += 4;
         } else if (ch == '-' && speed > 12) {
-        	speed -= 4;
+          speed -= 4;
         }
       }
     }
 
     if (!quit) {
-    	print_at(TEXT_GAME_OVER, ROWS/2, COLS / 2 - ((int)strlen(TEXT_GAME_OVER) / 2), COLOR_DEFAULT);
+      print_at(TEXT_GAME_OVER, ROWS / 2,
+               COLS / 2 - ((int)strlen(TEXT_GAME_OVER) / 2), TEXT_BLINK);
       fflush(stdout);
       usleep(1000000);
       getchar();
@@ -186,7 +190,7 @@ int main(void) {
   }
 
   /* Restore initial terminal settings */
-  printf(AES_SHOW_CURSOR);
+  printf(AES_CURSOR_SHOW);
   tcsetattr(STDIN_FILENO, TCSANOW, &term_initial);
   return EXIT_SUCCESS;
 }

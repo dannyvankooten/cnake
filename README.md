@@ -15,7 +15,7 @@ make
 Alternatively, invoke your compiler of choice directly:
 
 ```
-gcc cnake.c -O2 -o cnake
+cc cnake.c -O2 -o cnake
 ```
 
 Then run `cnake` from your terminal to start the game.
