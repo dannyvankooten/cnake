@@ -4,6 +4,7 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <signal.h>
 
 #define COLS 60
 #define ROWS 20
@@ -75,25 +76,39 @@ static void print_at(const char *str, const int row, const int col,
   printf(AES_CURSOR_UP_BOL, row);
 }
 
+struct termios term_initial;
+
 static void play_sound(void) {
 	printf("\a");
+}
+
+static void exit_handler(void) {
+	printf(AES_CURSOR_SHOW);
+  printf(AES_ERASE);
+  tcsetattr(STDIN_FILENO, TCSANOW, &term_initial);
+}
+
+/* Ensure out exit handler runs when Ctrl+C is pressed */
+static void sigint_handle(int _unused) {
+	exit_handler();
+	exit(1);
 }
 
 int main(void) {
   /* Initialize terminal */
   printf(AES_CURSOR_HIDE);
-  struct termios term_initial;
   struct termios term_cfg;
   tcgetattr(STDIN_FILENO, &term_initial);
   term_cfg = term_initial;
   term_cfg.c_lflag &= (tcflag_t) ~(ICANON | ECHO);
   tcsetattr(STDIN_FILENO, TCSANOW, &term_cfg);
+ 	signal(SIGINT, &sigint_handle);
+ 	atexit(&exit_handler);
 
   int x[MAX_SNAKE_LENGTH];
   int y[MAX_SNAKE_LENGTH];
-  char quit = 0;
 
-  while (!quit) {
+  while (1) {
     print_table();
 
     unsigned int head = 0;
@@ -108,7 +123,7 @@ int main(void) {
     int food_x = -1;
     int food_y;
 
-    while (!quit && !game_over) {
+    while (!game_over) {
       /* maybe place new food */
       if (food_x < 0) {
         food_x = rand() % COLS;
@@ -164,8 +179,8 @@ int main(void) {
       select(STDOUT_FILENO, &fds, NULL, NULL, &(struct timeval){0, 0});
       if (FD_ISSET(STDIN_FILENO, &fds)) {
         int ch = getchar();
-        if (ch == 27 || ch == 'q') {
-          quit = 1;
+        if (ch == 27) {
+          return EXIT_SUCCESS;
         } else if (ch == 'w' && dy != 1) {
           dx = 0;
           dy = -1;
@@ -195,9 +210,5 @@ int main(void) {
     }
   }
 
-  /* Restore initial terminal settings */
-  printf(AES_CURSOR_SHOW);
-  printf(AES_ERASE);
-  tcsetattr(STDIN_FILENO, TCSANOW, &term_initial);
   return EXIT_SUCCESS;
 }

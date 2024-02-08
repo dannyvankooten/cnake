@@ -22,7 +22,9 @@ Then run `cnake` from your terminal to start the game.
 
 ### Controls
 
-Use `wasd` to change direction. You can increase or decrease the speed by pressing `+` or `-`.
+- `wasd` to change direction.
+- `+` or `-` to in- or decrease the snake's speed.
+- `ESC` or `Ctrl+C` to quit.
 
 ## License
 
