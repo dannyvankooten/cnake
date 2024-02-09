@@ -13,18 +13,19 @@
 
 /* ANSI escape sequences */
 /* @see https://gist.github.com/ConnerWill/d4b6c776b509add763e17f9f113fd25b */
-#define AES_ERASE "\x1B[0J"
-#define AES_CURSOR_HIDE "\x1B[?25l"
-#define AES_CURSOR_SHOW "\x1B[?25h"
-#define AES_CURSOR_UP "\x1B[%dA"
-#define AES_CURSOR_DOWN "\x1B[%dB"
-#define AES_CURSOR_RIGHT "\x1B[%dC"
-#define AES_CURSOR_LEFT "\x1B[%dD"
-#define AES_TEXT_COLOR_RED "\x1B[0;31m"
-#define AES_TEXT_COLOR_GREEN "\x1B[0;32m"
-#define AES_TEXT_RESET "\x1B[0m"
-#define AES_TEXT_BLINK "\x1B[5m"
-#define AES_CURSOR_UP_BOL "\x1B[%dF"
+#define AES_ESCAPE "\x1B["
+#define AES_ERASE AES_ESCAPE "0J"
+#define AES_CURSOR_HIDE AES_ESCAPE "?25l"
+#define AES_CURSOR_SHOW AES_ESCAPE "?25h"
+#define AES_CURSOR_UP AES_ESCAPE "%dA"
+#define AES_CURSOR_DOWN AES_ESCAPE "%dB"
+#define AES_CURSOR_RIGHT AES_ESCAPE "%dC"
+#define AES_CURSOR_LEFT AES_ESCAPE "%dD"
+#define AES_TEXT_COLOR_RED AES_ESCAPE "0;31m"
+#define AES_TEXT_COLOR_GREEN AES_ESCAPE "0;32m"
+#define AES_TEXT_RESET AES_ESCAPE "0m"
+#define AES_TEXT_BLINK AES_ESCAPE "5m"
+#define AES_CURSOR_UP_BOL AES_ESCAPE "%dF"
 
 enum TextStyle {
   TEXT_DEFAULT,
@@ -99,8 +100,8 @@ void wait(unsigned int ms) {
   struct timeval tv = {0L, ms * 1000L};
   fd_set fds;
   FD_ZERO(&fds);
-  FD_SET(0, &fds);
-  select(1, &fds, NULL, NULL, &tv);
+  FD_SET(STDERR_FILENO, &fds);
+  select(STDERR_FILENO, &fds, NULL, NULL, &tv);
 }
 
 /* Checks if there is any input waiting to be read in stdin */
@@ -127,7 +128,6 @@ int getch(void) {
 
   /* ANSI escape sequence was pressed */
   /* If nothing follows, ESC was pressed */
-  // wait(50);
   if (!kbhit()) {
     return ch;
   }
@@ -139,7 +139,6 @@ int getch(void) {
     return ch;
   }
 
-  // wait(50);
   if (!kbhit()) {
     return ch;
   }
