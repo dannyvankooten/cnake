@@ -1,13 +1,14 @@
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
-#include <signal.h>
 
-#define COLS 60
-#define ROWS 20
+#define COLS (60)
+#define ROWS (20)
 #define MAX_SNAKE_LENGTH (COLS * ROWS)
 
 /* ANSI escape sequences */
@@ -32,15 +33,16 @@ enum TextStyle {
   TEXT_BLINK,
 };
 
-static const char *TEXT_GAME_OVER = "Game Over!";
-static const char *text_styles[] = {
-	AES_TEXT_RESET,
-	AES_TEXT_COLOR_RED,
-	AES_TEXT_COLOR_GREEN,
-	AES_TEXT_BLINK,
+const char *TEXT_GAME_OVER = "Game Over!";
+const char *text_styles[] = {
+    AES_TEXT_RESET,
+    AES_TEXT_COLOR_RED,
+    AES_TEXT_COLOR_GREEN,
+    AES_TEXT_BLINK,
 };
+struct termios term_initial;
 
-static void print_table(void) {
+void print_table(void) {
   printf("┌");
   for (unsigned c = 0; c < COLS; c++) {
     printf("─");
@@ -66,8 +68,8 @@ static void print_table(void) {
   printf(AES_CURSOR_UP, ROWS + 2);
 }
 
-static void print_at(const char *str, const int row, const int col,
-                     const enum TextStyle style) {
+void print_at(const char *str, const int row, const int col,
+              const enum TextStyle style) {
   printf(AES_CURSOR_DOWN, row);
   printf(AES_CURSOR_RIGHT, col);
   printf("%s", text_styles[style]);
@@ -76,35 +78,114 @@ static void print_at(const char *str, const int row, const int col,
   printf(AES_CURSOR_UP_BOL, row);
 }
 
-struct termios term_initial;
+void play_sound(void) { printf("\a"); }
 
-static void play_sound(void) {
-	printf("\a");
-}
-
-static void exit_handler(void) {
-	printf(AES_CURSOR_SHOW);
+void exit_handler(void) {
+  printf(AES_CURSOR_SHOW);
   printf(AES_ERASE);
   tcsetattr(STDIN_FILENO, TCSANOW, &term_initial);
 }
 
-/* Ensure out exit handler runs when Ctrl+C is pressed */
-static void sigint_handle(int _unused) {
-	exit_handler();
-	exit(1);
+/* Ensure our exit handler runs when Ctrl+C is pressed */
+void sigint_handle(int _unused) {
+  (void)_unused; // ignore unused attr warning
+  exit_handler();
+  exit(1);
 }
 
-int main(void) {
+/* Sleeps for the given amount in miliseconds */
+/* Like sleep or usleep, but with ms precision (and not a GNU extension) */
+void wait(unsigned int ms) {
+  struct timeval tv = {0L, ms * 1000L};
+  fd_set fds;
+  FD_ZERO(&fds);
+  FD_SET(0, &fds);
+  select(1, &fds, NULL, NULL, &tv);
+}
+
+/* Checks if there is any input waiting to be read in stdin */
+int kbhit(void) {
+  struct timeval tv = {0L, 0L};
+  fd_set fds;
+  FD_ZERO(&fds);
+  FD_SET(STDIN_FILENO, &fds);
+  select(STDOUT_FILENO, &fds, NULL, NULL, &tv);
+  return FD_ISSET(0, &fds);
+}
+
+/* Normalizes key presses to WASD */
+int getch(void) {
+  if (!kbhit()) {
+    return 0;
+  }
+
+  int ch = 0;
+  read(STDIN_FILENO, &ch, 1);
+  if (ch != 27) {
+    return ch;
+  }
+
+  /* ANSI escape sequence was pressed */
+  /* If nothing follows, ESC was pressed */
+  // wait(50);
+  if (!kbhit()) {
+    return ch;
+  }
+
+  /* If next byte is 91, an arrow key was pressed */
+  int a = 0;
+  read(STDIN_FILENO, &a, 1);
+  if (a != 91) {
+    return ch;
+  }
+
+  // wait(50);
+  if (!kbhit()) {
+    return ch;
+  }
+  int b = 0;
+  read(STDIN_FILENO, &b, 1);
+
+  switch (b) {
+  case 65:
+    return 'w';
+    break;
+  case 66:
+    return 's';
+    break;
+  case 67:
+    return 'd';
+    break;
+  case 68:
+    return 'a';
+    break;
+  default:
+    return ch;
+    break;
+  }
+
+  return ch;
+}
+
+void term_init(void) {
   /* Initialize terminal */
   printf(AES_CURSOR_HIDE);
   struct termios term_cfg;
   tcgetattr(STDIN_FILENO, &term_initial);
   term_cfg = term_initial;
-  term_cfg.c_lflag &= (tcflag_t) ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSANOW, &term_cfg);
- 	signal(SIGINT, &sigint_handle);
- 	atexit(&exit_handler);
 
+  /* Like cfmakeraw() but without the output flags */
+  term_cfg.c_lflag &= (tcflag_t) ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+  term_cfg.c_cflag &= (tcflag_t) ~(CSIZE | PARENB);
+  term_cfg.c_iflag &= (tcflag_t) ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR |
+                                   IGNCR | ICRNL | IXON);
+  tcsetattr(STDIN_FILENO, TCSANOW, &term_cfg);
+  signal(SIGINT, &sigint_handle);
+  atexit(&exit_handler);
+}
+
+int main(void) {
+  term_init();
   int x[MAX_SNAKE_LENGTH];
   int y[MAX_SNAKE_LENGTH];
 
@@ -148,7 +229,7 @@ int main(void) {
       /* Check if head collided with food */
       if (x[head] == food_x && y[head] == food_y) {
         food_x = -1;
-      	play_sound();
+        play_sound();
       } else {
         tail = (tail + 1) % MAX_SNAKE_LENGTH;
       }
@@ -170,15 +251,10 @@ int main(void) {
       /* Draw head */
       print_at("█", y[head] + 1, x[head] + 1, TEXT_GREEN);
       fflush(stdout);
-      usleep(1000000 / speed);
+      wait(1000 / speed);
 
-      /* Non-blocking getchar() by calling select with a timeout of 0 */
-      fd_set fds;
-      FD_ZERO(&fds);
-      FD_SET(STDIN_FILENO, &fds);
-      select(STDOUT_FILENO, &fds, NULL, NULL, &(struct timeval){0, 0});
-      if (FD_ISSET(STDIN_FILENO, &fds)) {
-        int ch = getchar();
+      int ch = getch();
+      if (ch) {
         if (ch == 27) {
           return EXIT_SUCCESS;
         } else if (ch == 'w' && dy != 1) {
@@ -195,7 +271,7 @@ int main(void) {
           dy = 0;
         } else if (ch == '+' && speed < 40) {
           speed += 4;
-        } else if (ch == '-' && speed > 12) {
+        } else if (ch == '-' && speed > 4) {
           speed -= 4;
         }
       }
@@ -205,7 +281,7 @@ int main(void) {
       print_at(TEXT_GAME_OVER, ROWS / 2,
                COLS / 2 - ((int)strlen(TEXT_GAME_OVER) / 2), TEXT_BLINK);
       fflush(stdout);
-      usleep(1000000);
+      wait(1000);
       getchar();
     }
   }

@@ -1,2 +1,2 @@
 CompileFlags:
-  Add: [-std=gnu99, -Wall, -Wextra, -Wpedantic, -Wundef, -Winline, -Wimplicit-fallthrough, -Wformat=2, -Wconversion ]
+  Add: [-std=c99, -Wall, -Wextra, -Wpedantic, -Wundef, -Winline, -Wimplicit-fallthrough, -Wformat=2, -Wconversion ]

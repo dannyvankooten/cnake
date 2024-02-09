@@ -1,6 +1,6 @@
-CFLAGS+= -std=gnu99 -Wall -Wextra -Wpedantic  \
+CFLAGS+= -std=c99 -Wall -Wextra -Wpedantic  \
 -Wundef -Winline -Wimplicit-fallthrough -Wformat=2  \
--Wconversion -O2
+-Wconversion -Wstringop-overflow=3 -Wvla
 
 ifndef RELEASE
 CFLAGS+= -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS  \

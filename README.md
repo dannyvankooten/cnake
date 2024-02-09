@@ -26,6 +26,11 @@ Then run `cnake` from your terminal to start the game.
 - `+` or `-` to in- or decrease the snake's speed.
 - `ESC` or `Ctrl+C` to quit.
 
+## Related resources
+
+- everything you ever wanted to know about terminals, https://xn--rpa.cc/irl/term.html
+- ANSI escape codes, https://en.wikipedia.org/wiki/ANSI_escape_code
+
 ## License
 
 [UNLICENSE](LICENSE)
